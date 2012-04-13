@@ -1,3 +1,11 @@
+							/* Made by Ishan Mehta, Ankita Mehta */
+/*
+TO DO: 	1)add menu to ask to continue playing game or quit-done
+	2)add the score panel
+	3) add the draw condition
+	4)
+
+*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
