@@ -10,36 +10,76 @@
 #include<string.h>
 #include<signal.h>
 #include<stdlib.h>
+#include<unistd.h>
 #define SIZE sizeof(struct sockaddr_in) 
 
+int play();
+int menu(void);
 void catcher(int sig);
 void mapBoard(char playBoard[][3]);
 void showLogo();
+void help(void);
+void playerWinhandler(int signum);
+int te=0;
 
-int main(void) 
+int main(void)
+{
+	while(1)
+	{
+	/*get selection and execute the relevant statement*/
+	switch(menu())
+		{
+		case 1:
+		{
+		printf("\nYou selected Play Option\n\n");
+		play();
+		break;
+		}
+		case 2:
+		{ 
+		printf("\nYou selected Help Option\n\n");
+		help();
+		break;
+		}
+		case 3:
+		{
+		printf("\nYou are quitting\n\n"); 
+		exit(0);
+		break;
+		}
+		default:
+		{
+		printf("\nInvalid menu choice\n\n");
+		break;
+		}
+		}
+	}
+}
+
+int play(void) 
 {
 	 
-	/*
-	sigset_t set1;
-	sigfillset(&set1);
-	sigprocmask(SIG_SETMASK, &set1, NULL);
-	*/
-	
 	void result(char [],char []);
 	static struct sigaction act; 
 	act.sa_handler = SIG_IGN; 
 	sigfillset(&(act.sa_mask)); 
 	sigaction(SIGTSTP, &act, 0);
 
-	struct sockaddr_in server = {AF_INET, 8200}; 
+	signal(SIGUSR1,playerWinhandler);
+	signal(SIGUSR2,playerWinhandler);
+
+	struct sockaddr_in server = {AF_INET, 8001}; 
 	server.sin_addr.s_addr = inet_addr("127.0.0.1"); 
 
-	int sockfd; 
-	char input; 
-	int i;
+	int sockfd,i; 
 	int row,column,choice;
-	int points[2];
-	char pnts[2][10];
+	int iclientRead; 		
+	char input; 
+	char a[2][40];
+	char pid[4];
+	char clientRead[3][3];
+	char clientWrite[1];
+	
 
 	char numberBoard [3][3] = {							// to display positions to choose from
 	 		         		{'1','2','3'},
@@ -47,7 +87,12 @@ int main(void)
 		       				{'7','8','9'}
 	       		          }; 
 
-        
+        char playBoard [3][3] =   {							// to display the actual game status
+			         		{' ',' ',' '},
+						{' ',' ',' '},
+		       				{' ',' ',' '}
+	                          };
+
 
 	if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
 	{
@@ -60,47 +105,38 @@ int main(void)
 		perror("Connect Call Failed"); 
 		exit(1); 
 	} 
-
-
-
-		
-
-	char a[2][40];
+	
 	read(sockfd,a,sizeof(a));
 	printf("%s\n",a[0]);
 
 	if(strcmp(a[1],"0")==0)
 	{
+		int num1 = getpid();
+		sprintf(pid,"%d",num1);
+		write(sockfd, pid, sizeof(pid));	
 		read(sockfd,a,sizeof(a));
 		printf("%s\n",a[0]);
 		showLogo();
 	}
 
-	char clientRead[5][3];
-	strcpy(clientRead[3],"0");
-	strcpy(clientRead[4],"0");
-	char clientWrite[1];
-	int iclientRead; 	
-for(;;)
-{
-		char playBoard [5][3] =   {							// to display the actual game status
-			         		{' ',' ',' '},
-						{' ',' ',' '},
-		       				{' ',' ',' '},
-						{' '},
-						{' '}	
-		                          };
-
+	if(strcmp(a[1],"2")==0)
+	{
+	int num2 = getpid();
+	sprintf(pid,"%d",num2);
+	write(sockfd, pid, sizeof(pid));	
+	}
+	
 	if (strcmp(a[1],"1")!=0)
 	{
+		
 		showLogo();		
 		mapBoard(numberBoard);	
 		printf("\n    Number Board\n\n");
 		for(;;)
 			{
-			printf("\nPlayer %d, Please enter the number of the square where you want to place your '%c': \n",(strcmp(a[1], "1")==0)?1:2,(strcmp(a[1], "1")==0)?'X':'O');
+			printf("\nPlayer %d,Please enter the number of the square where you want to place your '%c': \n",(strcmp(a[1], "1")==0)?1:2,(strcmp(a[1], "1")==0)?'X':'O');
 			scanf("%s",clientWrite);
-			
+
 			choice = atoi(clientWrite);
 			row = --choice/3;
 			column = choice%3;
@@ -109,13 +145,13 @@ for(;;)
 				printf("Invalid Input. Please Enter again.\n\n");
 		
 			else
-				{
+			{
 				playBoard[row][column] = (strcmp(a[1], "1")==0)?'X':'O';					
 				break;
-					}
+			}
 			}	
 
-		write(sockfd, clientWrite, sizeof(clientWrite));
+		write(sockfd, clientWrite, sizeof(clientWrite));	
 		system("clear");
 		showLogo();
 		mapBoard(playBoard);
@@ -125,25 +161,30 @@ for(;;)
 	for(input = 'x';;) 
 	{ 	
 		if (input == '\n') 
-		{	
-			mapBoard(numberBoard);	
-			printf("\n    Number Board\n\n");					
-			for(;;)
+		{	if (te==0)
 			{
-			printf("\nPlayer %d, Now your turn .. Please enter the number of the square where you want to place your '%c': \n",(strcmp(a[1], "1")==0)?1:2,(strcmp(a[1], "1")==0)?'X':'O');
-			scanf("%s",clientWrite);
-
-			choice = atoi(clientWrite);
-			row = --choice/3;
-			column = choice%3;
-		
-				if(choice<0 || choice>9 || playBoard [row][column]>'9'|| playBoard [row][column]=='X' || playBoard [row][column]=='O')
-				printf("Invalid Input. Please Enter again.\n\n");
-		
-				else
+				mapBoard(numberBoard);	
+				printf("\n    Number Board\n\n");
+			}					
+			for(;;)
+			{	
+				if (te==0)
 				{
-					playBoard[row][column] = (strcmp(a[1], "1")==0)?'X':'O';
-					break;
+					printf("\nPlayer %d, Now your turn .. Please enter the number of the square where you want to place your '%c': \n",(strcmp(a[1], "1")==0)?1:2,(strcmp(a[1], "1")==0)?'X':'O');
+					scanf("%s",clientWrite);
+			
+					choice = atoi(clientWrite);
+					row = --choice/3;
+					column = choice%3;
+			
+					if(choice<0 || choice>9 || playBoard [row][column]>'9'|| playBoard [row][column]=='X' || playBoard [row][column]=='O')
+						printf("Invalid Input. Please Enter again.\n\n");
+		
+					else
+					{
+						playBoard[row][column] = (strcmp(a[1], "1")==0)?'X':'O';
+						break;
+					}
 				}
 			}	
 			
@@ -152,41 +193,45 @@ for(;;)
 			showLogo();
 			mapBoard(playBoard);
 			printf("\nCurrent Play Board\n\n");
-			
+			if (te==1)
+				{
+				printf("Player 1 Wins!!\n");
+				exit(0);
+				}
+   			if (te==2)
+				{
+				printf("Player 2 Wins!!\n");
+				exit(0);
+   				}
 		}
 
 		if (read(sockfd, clientRead, sizeof(clientRead)) >0) 
 		{
-			
 			system("clear");
 			showLogo();
 			memcpy(playBoard, clientRead, sizeof(playBoard));	// copy the contents of the array received from server side in playBoard array
 			mapBoard(playBoard);
 			printf("\nCurrent Play Board\n\n");
 			input = '\n';
-			printf("Total Points of Player 1 = %s\n",clientRead[3]);		
-		        printf("Total Points of Player 2 = %s\n",clientRead[4]);	
-			if(strcmp(clientRead[0], "f")==0)
-			break;
+			if (te==1)
+				{
+				printf("Player 1 Wins!!\n");
+				exit(0);
+				}
+   			if (te==2)
+				{
+				printf("Player 2 Wins!!\n");
+				exit(0);
+   				}
 		}	
 		else 
 		{
-			printf("server has died\n");
-			
-			printf("Total Points of Player 1 = %s\n",playBoard[3]);		
-		        printf("Total Points of Player 2 = %s\n",playBoard[4]);	
+			printf("You Win!! Thank You, Please Play Again :D\n");
 			close(sockfd);
 			exit(1); 
 		} 
-		/*system("clear");
-		showLogo();
-		mapBoard(playBoard);
-		printf("\nCurrent Play Board\n\n");*/
-			
-}	
-continue;
+		
 }
-
 }
 
 void showLogo() 
@@ -220,3 +265,48 @@ void catcher(int sig)
 	printf("Sorry...you can quit only after your chance is over! \n");
 }
 
+/*menu function*/
+int menu(void)
+{
+	int reply;
+	/*display menu options*/
+	printf("--------------------------------------------------------------------------\n");
+	printf("| # # #   # # #    # # #   # # #    #      # # #  # # #   # # #   # # #  |\n");
+	printf("|   #       #      #   #     #     #  #    #   #    #     #   #   #      |\n");
+	printf("|   #       #      #         #    #    #   #        #     #   #   # # #  |\n");
+	printf("|   #       #      #   #     #   # #  # #  #   #    #     #   #   #      |\n");
+	printf("|   #     # # #    # # #     #  #        # # # #    #     # # #   # # #  |\n");
+	printf("--------------------------------------------------------------------------\n");
+	printf("			Made By: Ankita Ishan 				  \n");
+	printf("--------------------------------------------------------------------------\n");
+	printf("			    Play Grid Menu  				  \n ");
+	printf("--------------------------------------------------------------------------\n");
+
+
+	printf("Enter 1 to Play.\n\n");
+	printf("Enter 2 for Help.\n\n");
+	printf("Enter 3 to Quit.\n\n");
+
+	/*scan for user entry*/
+	scanf("%d", &reply);
+
+	return reply;
+}
+
+void playerWinhandler(int signum)
+{
+    if (signum == SIGUSR1)
+    {
+        te=1;
+    }
+
+    if (signum == SIGUSR2)
+    {
+	te=2;
+    }
+}
+
+void help(void)
+{
+printf("Tic-tac-toe, also called wick wack woe (in some Asian countries) and noughts and crosses (in the British Commonwealth countries) and X's and O's in the Republic of Ireland, is a pencil-and-paper game for two players, X and O, who take turns marking the spaces in a 3×3 grid. The player who succeeds in placing three respective marks in a horizontal, vertical, or diagonal row wins the game.\n\n");
+}
